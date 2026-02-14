@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  GYM_ADMIN
+  EMPLOYEE
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  BANK_TRANSFER
+  OTHER
+}
+
+enum NotificationType {
+  WELCOME
+  EXPIRY_2_DAYS
+  EXPIRY_1_DAY
+  EXPIRY_TODAY
+  PAYMENT_REMINDER
+  CUSTOM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum GymSubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  TRIAL
+  CANCELLED
+}
+
+// Gym Subscription Plans (Your SaaS pricing tiers)
+model GymSubscriptionPlan {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  name String // "Basic", "Pro", "Enterprise"
+  duration Int // Duration in days (30, 90, 365)
+  price Float // Monthly/Annual price for the gym
+  maxStudents Int // Maximum students allowed (e.g., 50, 200, unlimited)
+  maxEmployees Int // Maximum employees allowed
+  features String[] // ["WhatsApp Integration", "SMS Notifications", "Analytics", etc.]
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  gymSubscriptions GymSubscription[]
+
+  @@index([isActive])
+}
+
+// Track each gym's subscription
+model GymSubscription {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  startDate DateTime @default(now())
+  endDate DateTime
+  status GymSubscriptionStatus @default(TRIAL)
+  autoRenewal Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  gymId String @db.ObjectId @unique
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  planId String @db.ObjectId
+  plan GymSubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([status])
+  @@index([endDate])
+}
+
+model User {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  email String @unique
+  password String
+  name String
+  mobile String?
+  role Role @default(EMPLOYEE)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  managedGyms Gym[] @relation("GymAdmin")
+  gymId String? @db.ObjectId
+  employeeAt Gym? @relation("GymEmployee", fields: [gymId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments Payment[]
+  createdStudents Student[] @relation("CreatedBy")
+
+  @@index([role])
+}
+
+model Gym {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+  address String?
+  mobile String?
+  email String?
+  logo String?
+  isActive Boolean @default(true)
+  
+  // WhatsApp Configuration (for sending messages to students)
+  whatsappApiKey String? // Store encrypted API key
+  whatsappPhoneNumber String? // Gym's WhatsApp business number
+  whatsappEnabled Boolean @default(false) // Enable/disable WhatsApp notifications
+  
+  // Additional Settings
+  timezone String @default("Asia/Kolkata") // For scheduling notifications
+  currency String @default("INR") // For pricing display
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  adminId String @db.ObjectId
+  admin User @relation("GymAdmin", fields: [adminId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  employees User[] @relation("GymEmployee")
+  students Student[]
+  plans MembershipPlan[]
+  subscription GymSubscription?
+
+  @@index([adminId])
+  @@index([isActive])
+}
+
+model MembershipPlan {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  name String // "1 Month", "3 Months", "6 Months", "12 Months", "Custom Plan"
+  duration Int // Duration in days (30, 90, 180, 365, custom)
+  price Float
+  description String?
+  isActive Boolean @default(true)
+  isDefault Boolean @default(false) // True for standard plans (1M, 3M, 6M, 12M)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // Relations
+  gymId String @db.ObjectId
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  students Student[]
+
+  @@index([gymId])
+  @@index([isActive])
+  @@index([isDefault])
+}
+
+model Student {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+  mobile String
+  email String?
+  address String?
+  photo String?
+  joiningDate DateTime @default(now())
+  expiryDate DateTime
+  status MembershipStatus @default(ACTIVE)
+  totalFees Float @default(0)
+  paidAmount Float @default(0)
+  pendingAmount Float @default(0)
+  
+  // Track if welcome message was sent
+  welcomeMessageSent Boolean @default(false)
+  welcomeMessageSentAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  gymId String @db.ObjectId
+  gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  planId String @db.ObjectId
+  plan MembershipPlan @relation(fields: [planId], references: [id])
+  createdById String @db.ObjectId
+  createdBy User @relation("CreatedBy", fields: [createdById], references: [id])
+  payments Payment[]
+  notifications Notification[]
+
+  @@index([gymId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([mobile])
+}
+
+model Payment {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  amount Float
+  paymentDate DateTime @default(now())
+  paymentMethod PaymentMethod @default(CASH)
+  remarks String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  studentId String @db.ObjectId
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  userId String @db.ObjectId
+  collectedBy User @relation(fields: [userId], references: [id])
+
+  @@index([studentId])
+  @@index([paymentDate])
+  @@index([userId])
+}
+
+model Notification {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  type NotificationType
+  message String
+  status NotificationStatus @default(PENDING)
+  sentAt DateTime?
+  error String?
+  
+  // Track retry attempts
+  retryCount Int @default(0)
+  maxRetries Int @default(3)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  studentId String @db.ObjectId
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([type])
+}
+
+// Track WhatsApp message logs (Optional but recommended)
+model WhatsAppLog {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  phoneNumber String
+  message String
+  status String // "sent", "failed", "delivered", "read"
+  provider String @default("twilio") // "twilio", "whatsapp-business-api", etc.
+  messageId String? // Provider's message ID
+  error String?
+  sentAt DateTime @default(now())
+  
+  // Relations
+  gymId String @db.ObjectId
+  studentId String? @db.ObjectId // Optional: link to student if applicable
+  
+  @@index([gymId])
+  @@index([studentId])
+  @@index([status])
+  @@index([sentAt])
+}
