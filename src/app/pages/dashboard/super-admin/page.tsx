@@ -1,91 +1,8 @@
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { Button } from "@/components/ui/button";
-// import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-// import { GymForm } from "@/components/GymForm";
-// import { DataTable } from "@/components/DataTable";
-// import { ColumnDef } from "@tanstack/react-table";
-// import { DashboardLayout } from "@/components/DashboardLayout";
-// import { PlanForm } from "@/components/PlanForm";
-
-// type Gym = {
-//   id: string;
-//   name: string;
-//   address?: string;
-//   mobile?: string;
-//   email?: string;
-// };
-
-// const columns: ColumnDef<Gym>[] = [
-//   { accessorKey: "name", header: "Name" },
-//   { accessorKey: "address", header: "Address" },
-//   { accessorKey: "mobile", header: "Mobile" },
-//   { accessorKey: "email", header: "Email" },
-//   {
-//     id: "actions",
-//     cell: ({ row }) => (
-//       <div className="flex gap-2">
-//         <Button variant="ghost" size="sm">Edit</Button>
-//         <Button variant="ghost" size="sm">Delete</Button>
-//         <Dialog>
-//           <DialogTrigger asChild>
-//             <Button variant="outline" size="sm">Add Plan</Button>
-//           </DialogTrigger>
-//           <DialogContent>
-//             <DialogHeader>
-//               <DialogTitle>Add Plan for {row.original.name}</DialogTitle>
-//             </DialogHeader>
-//             <PlanForm gymId={row.original.id} onClose={() => {}} />
-//           </DialogContent>
-//         </Dialog>
-//       </div>
-//     ),
-//   },
-// ];
-
-// export default function SuperAdminDashboard() {
-//   const [gyms, setGyms] = useState<Gym[]>([]);
-
-//   useEffect(() => {
-//     fetch("/api/gyms")
-//       .then((res) => {
-//         if (!res.ok) throw new Error("Failed to fetch gyms");
-//         return res.json();
-//       })
-//       .then(setGyms)
-//       .catch((err) => console.error(err));
-//   }, []);
-
-//   return (
-//     <DashboardLayout activePath="dashboard">
-//       <div className="space-y-6">
-//         <div className="flex items-center justify-between">
-//           <h1 className="text-3xl font-bold tracking-tight">Super Admin Dashboard</h1>
-//           <Dialog>
-//             <DialogTrigger asChild>
-//               <Button>Add New Gym</Button>
-//             </DialogTrigger>
-//             <DialogContent className="max-w-2xl">
-//               <DialogHeader>
-//                 <DialogTitle>Add New Gym</DialogTitle>
-//               </DialogHeader>
-//               <GymForm onClose={() => { /* optional: refresh gyms list */ }} />
-//             </DialogContent>
-//           </Dialog>
-//         </div>
-
-//         <DataTable columns={columns} data={gyms} />
-//       </div>
-//     </DashboardLayout>
-//   );
-// }
-
-// app/dashboard/super-admin/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -105,6 +22,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Building2,
@@ -113,14 +32,19 @@ import {
   Clock,
   Users,
   TrendingUp,
+  Plus,
+  LayoutDashboard,
+  Dumbbell,
+  Settings,
 } from "lucide-react";
+import { format } from "date-fns";
 
 type Gym = {
   id: string;
   name: string;
-  address?: string;
-  mobile?: string;
-  email?: string;
+  address?: string | null;
+  mobile?: string | null;
+  email?: string | null;
   admin: {
     name: string;
     email: string;
@@ -132,11 +56,12 @@ type Gym = {
     };
     status: string;
     endDate: string;
-  };
+  } | null;
   _count: {
     students: number;
     employees: number;
   };
+  createdAt: string;
 };
 
 type DashboardStats = {
@@ -160,7 +85,7 @@ type DashboardStats = {
   }>;
 };
 
-const iconMap = {
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Building2,
   CheckCircle,
   DollarSign,
@@ -169,24 +94,105 @@ const iconMap = {
   TrendingUp,
 };
 
+const columns: ColumnDef<Gym>[] = [
+  {
+    accessorKey: "name",
+    header: "Gym Name",
+    cell: ({ row }) => (
+      <div className="font-medium">{row.getValue("name")}</div>
+    ),
+  },
+  {
+    accessorKey: "admin.name",
+    header: "Admin",
+    cell: ({ row }) => {
+      const admin = row.original.admin;
+      return (
+        <div>
+          <div className="font-medium">{admin.name}</div>
+          <div className="text-sm text-muted-foreground">{admin.email}</div>
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "mobile",
+    header: "Mobile",
+    cell: ({ row }) => row.getValue("mobile") || "—",
+  },
+  {
+    accessorKey: "_count.students",
+    header: "Students",
+    cell: ({ row }) => row.original._count.students.toLocaleString(),
+  },
+  {
+    accessorKey: "subscription",
+    header: "Subscription",
+    cell: ({ row }) => {
+      const sub = row.original.subscription;
+      if (!sub) {
+        return <Badge variant="destructive">No Plan</Badge>;
+      }
+      return (
+        <div className="space-y-1">
+          <div className="font-medium">{sub.plan.name}</div>
+          <Badge
+            variant={
+              sub.status === "ACTIVE"
+                ? "default"
+                : sub.status === "TRIAL"
+                ? "secondary"
+                : "destructive"
+            }
+          >
+            {sub.status}
+          </Badge>
+          <div className="text-xs text-muted-foreground">
+            Ends: {format(new Date(sub.endDate), "dd MMM yyyy")}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => (
+      <div className="flex gap-2">
+        <Button variant="ghost" size="sm">
+          View
+        </Button>
+        <Button variant="ghost" size="sm">
+          Edit
+        </Button>
+        <Button variant="ghost" size="sm" className="text-red-600">
+          Delete
+        </Button>
+      </div>
+    ),
+  },
+];
+
 export default function SuperAdminDashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   const [gyms, setGyms] = useState<Gym[]>([]);
-  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(
-    null
-  );
+  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (status === "authenticated") {
+      fetchData();
+    }
+  }, [status]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [gymsRes, dashboardRes] = await Promise.all([
-        fetch("/api/admin/gyms"),
-        fetch("/api/dashboard"),
+        fetch("/api/super-admin/gyms", { credentials: "include" }),
+        fetch("/api/super-admin/dashboard", { credentials: "include" }),
       ]);
 
       if (!gymsRes.ok || !dashboardRes.ok) {
@@ -199,82 +205,19 @@ export default function SuperAdminDashboard() {
       setGyms(gymsData);
       setDashboardData(dashData);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch dashboard data:", err);
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
-  const columns: ColumnDef<Gym>[] = [
-    { accessorKey: "name", header: "Gym Name" },
-    {
-      accessorKey: "admin.name",
-      header: "Admin",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.original.admin.name}</div>
-          <div className="text-sm text-muted-foreground">
-            {row.original.admin.email}
-          </div>
-        </div>
-      ),
-    },
-    { accessorKey: "mobile", header: "Mobile" },
-    {
-      accessorKey: "_count.students",
-      header: "Students",
-      cell: ({ row }) => row.original._count.students,
-    },
-    {
-      accessorKey: "subscription",
-      header: "Subscription",
-      cell: ({ row }) => {
-        const sub = row.original.subscription;
-        if (!sub) {
-          return <Badge variant="destructive">No Plan</Badge>;
-        }
-        return (
-          <div>
-            <div className="font-medium">{sub.plan.name}</div>
-            <Badge
-              variant={
-                sub.status === "ACTIVE"
-                  ? "default"
-                  : sub.status === "TRIAL"
-                  ? "secondary"
-                  : "destructive"
-              }
-            >
-              {sub.status}
-            </Badge>
-          </div>
-        );
-      },
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm">
-            View
-          </Button>
-          <Button variant="ghost" size="sm">
-            Edit
-          </Button>
-          <Button variant="ghost" size="sm" className="text-red-600">
-            Delete
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
-  if (loading) {
+  if (status === "loading") {
     return (
-      <DashboardLayout activePath="dashboard">
+      <DashboardLayout activePath="dashboard" >
         <div className="flex items-center justify-center h-96">
-          <p>Loading...</p>
+          <Skeleton className="h-12 w-48" />
         </div>
       </DashboardLayout>
     );
@@ -282,7 +225,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <DashboardLayout activePath="dashboard">
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -290,12 +233,16 @@ export default function SuperAdminDashboard() {
               Super Admin Dashboard
             </h1>
             <p className="text-muted-foreground">
-              Manage all gyms and subscriptions
+              Manage all gyms, subscriptions, and users
             </p>
           </div>
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button>Add New Gym</Button>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add New Gym
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
@@ -348,7 +295,7 @@ export default function SuperAdminDashboard() {
                 {dashboardData.recentGyms.map((gym) => (
                   <div
                     key={gym.id}
-                    className="flex items-center justify-between"
+                    className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent/50 transition-colors"
                   >
                     <div>
                       <p className="font-medium">{gym.name}</p>
@@ -381,7 +328,19 @@ export default function SuperAdminDashboard() {
             <CardDescription>Manage all registered gyms</CardDescription>
           </CardHeader>
           <CardContent>
-            <DataTable columns={columns} data={gyms} />
+            {loading ? (
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : gyms.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No gyms registered yet. Add your first gym!
+              </div>
+            ) : (
+              <DataTable columns={columns} data={gyms} />
+            )}
           </CardContent>
         </Card>
       </div>

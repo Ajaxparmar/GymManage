@@ -1,0 +1,6 @@
+2026/02/19-21:41:55.971 448f3b Reusing MANIFEST /Users/ajay/Desktop/GymManager/webapp/.wwebjs_auth/session-698ef8b528882654a0879804/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/19-21:41:55.999 448f3b Recovering log #13
+2026/02/19-21:41:56.005 448f3b Reusing old log /Users/ajay/Desktop/GymManager/webapp/.wwebjs_auth/session-698ef8b528882654a0879804/Default/Local Storage/leveldb/000013.log 
+2026/02/20-10:27:19.171 448f3f Level-0 table #17: started
+2026/02/20-10:27:19.214 448f3f Level-0 table #17: 15012 bytes OK
+2026/02/20-10:27:19.238 448f3f Delete type=0 #13

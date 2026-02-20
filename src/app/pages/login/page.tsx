@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -59,9 +59,18 @@ export default function Login() {
         return;
       }
 
+      const session = await getSession();
+
       toast.success("Login successful");
 
-      router.push("/pages/dashboard");
+      if (session?.user?.role === "SUPER_ADMIN") {
+        router.push("/pages/dashboard/super-admin");
+      } else if (session?.user?.role === "GYM_ADMIN") {
+        router.push("/pages/dashboard/gym-admin");
+      } else {
+        router.push("/"); // fallback
+      }
+
       router.refresh();
     } catch (error) {
       console.error(error);

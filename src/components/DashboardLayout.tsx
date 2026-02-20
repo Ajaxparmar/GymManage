@@ -527,7 +527,7 @@ export function DashboardLayout({ children, activePath }: DashboardLayoutProps) 
   }
 
   if (status === "unauthenticated") {
-    router.push("/login");
+    router.push("/pages/login");
     return null;
   }
 
@@ -540,8 +540,9 @@ export function DashboardLayout({ children, activePath }: DashboardLayoutProps) 
   const navItems = isSuperAdmin
     ? [
         { name: "Dashboard", href: "/pages/dashboard/super-admin", icon: LayoutDashboard, path: "dashboard" },
-        { name: "Gyms", href: "/pages/dashboard/super-admin/gyms", icon: Dumbbell, path: "gyms" },
-        { name: "Users", href: "/pages/dashboard/super-admin/users", icon: Users, path: "users" },
+        { name: "Gyms", href: "/pages/dashboard/super-admin/gyms", icon: Dumbbell, path: "gyms" },   
+        { name: "Plans", href: "/pages/dashboard/super-admin/plans", icon: CreditCard, path: "plans" },
+        { name: "subscriptions", href: "/pages/dashboard/super-admin/subscriptions", icon: Users, path: "subscriptions" },
         { name: "Settings", href: "/pages/dashboard/super-admin/settings", icon: Settings, path: "settings" },
       ]
     : isGymAdmin
@@ -759,7 +760,7 @@ export function DashboardLayout({ children, activePath }: DashboardLayoutProps) 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   className="text-red-600 focus:text-red-600"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  onClick={() => signOut({ callbackUrl: "/pages/login" })}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout

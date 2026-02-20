@@ -6,10 +6,10 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const role = req.nextauth.token?.role;
 
-    if (pathname.startsWith("/dashboard/super-admin") && role !== "SUPER_ADMIN") {
+    if (pathname.startsWith("/pages/dashboard/super-admin") && role !== "SUPER_ADMIN") {
       return NextResponse.redirect(new URL("/pages/login", req.url));
     }
-    if (pathname.startsWith("/dashboard/gym-admin") && role !== "GYM_ADMIN") {
+    if (pathname.startsWith("/pages/dashboard/gym-admin") && role !== "GYM_ADMIN") {
       return NextResponse.redirect(new URL("/pages/login", req.url));
     }
   },

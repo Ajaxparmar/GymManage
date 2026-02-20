@@ -52,7 +52,8 @@
 //   const [loading, setLoading] = useState(true);
 //   const [search, setSearch] = useState("");
 
-//   // Dialog state
+//   // Dialog state - FIXED: Added dialogOpen state
+//   const [dialogOpen, setDialogOpen] = useState(false);
 //   const [selectedMember, setSelectedMember] = useState<MemberWithPending | null>(null);
 //   const [payAmount, setPayAmount] = useState<number>(0);
 //   const [payLoading, setPayLoading] = useState(false);
@@ -109,6 +110,14 @@
 //   const openPayDialog = (member: MemberWithPending) => {
 //     setSelectedMember(member);
 //     setPayAmount(member.pendingAmount); // pre-fill with full pending
+//     setDialogOpen(true);
+//   };
+
+//   // FIXED: Close dialog properly
+//   const closeDialog = () => {
+//     setDialogOpen(false);
+//     setSelectedMember(null);
+//     setPayAmount(0);
 //   };
 
 //   const handlePayFee = async () => {
@@ -158,8 +167,8 @@
 //         setFilteredMembers((prev) => prev.filter((m) => m.id !== selectedMember.id));
 //       }
 
-//       setSelectedMember(null);
-//       setPayAmount(0);
+//       // FIXED: Close dialog after successful payment
+//       closeDialog();
 //     } catch (err: string | unknown) {
 //       if (err instanceof Error) {
 //         toast.error(err.message || "Failed to record payment");
@@ -273,72 +282,15 @@
 //                       ₹{member.pendingAmount.toLocaleString()}
 //                     </TableCell>
 //                     <TableCell className="text-right pr-6">
-//                       <Dialog>
-//                         <DialogTrigger asChild>
-//                           <Button
-//                             variant="outline"
-//                             size="sm"
-//                             className="gap-1.5"
-//                             onClick={() => openPayDialog(member)}
-//                           >
-//                             <IndianRupee className="h-3.5 w-3.5" />
-//                             Collect
-//                           </Button>
-//                         </DialogTrigger>
-
-//                         <DialogContent className="sm:max-w-md">
-//                           <DialogHeader>
-//                             <DialogTitle>Collect Fee – {member.name}</DialogTitle>
-//                             <DialogDescription>
-//                               Pending amount: <strong>₹{member.pendingAmount.toLocaleString()}</strong>
-//                             </DialogDescription>
-//                           </DialogHeader>
-
-//                           <div className="space-y-6 py-4">
-//                             <div className="space-y-2">
-//                               <Label htmlFor="payAmount">Amount to Collect (₹)</Label>
-//                               <Input
-//                                 id="payAmount"
-//                                 type="number"
-//                                 min={1}
-//                                 max={member.pendingAmount}
-//                                 value={payAmount}
-//                                 onChange={(e) => setPayAmount(Number(e.target.value))}
-//                                 className="text-lg"
-//                               />
-//                               <p className="text-sm text-muted-foreground">
-//                                 Remaining after payment:{" "}
-//                                 <span className="font-medium">
-//                                   ₹{(member.pendingAmount - payAmount).toLocaleString()}
-//                                 </span>
-//                               </p>
-//                             </div>
-//                           </div>
-
-//                           <DialogFooter>
-//                             <Button
-//                               variant="outline"
-//                               onClick={() => setSelectedMember(null)}
-//                               disabled={payLoading}
-//                             >
-//                               Cancel
-//                             </Button>
-//                             <Button
-//                               onClick={handlePayFee}
-//                               disabled={payLoading || payAmount <= 0 || payAmount > member.pendingAmount}
-//                             >
-//                               {payLoading ? (
-//                                 <>
-//                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-//                                   Processing...
-//                                 </>
-//                               ) : (
-//                                 `Collect ₹${payAmount.toLocaleString()}`
-//                               )}
-//                             </Button>
-//                           </DialogFooter>
-//                         </DialogContent>
-//                       </Dialog>
+//                       <Button
+//                         variant="outline"
+//                         size="sm"
+//                         className="gap-1.5"
+//                         onClick={() => openPayDialog(member)}
+//                       >
+//                         <IndianRupee className="h-3.5 w-3.5" />
+//                         Collect
+//                       </Button>
 //                     </TableCell>
 //                   </TableRow>
 //                 ))
@@ -347,10 +299,69 @@
 //           </Table>
 //         </div>
 //       </div>
+
+//       {/* FIXED: Dialog moved outside of table, controlled by dialogOpen state */}
+//       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+//         <DialogContent className="sm:max-w-md">
+//           <DialogHeader>
+//             <DialogTitle>Collect Fee – {selectedMember?.name}</DialogTitle>
+//             <DialogDescription>
+//               Pending amount: <strong>₹{selectedMember?.pendingAmount.toLocaleString()}</strong>
+//             </DialogDescription>
+//           </DialogHeader>
+
+//           <div className="space-y-6 py-4">
+//             <div className="space-y-2">
+//               <Label htmlFor="payAmount">Amount to Collect (₹)</Label>
+//               <Input
+//                 id="payAmount"
+//                 type="number"
+//                 min={1}
+//                 max={selectedMember?.pendingAmount || 0}
+//                 value={payAmount}
+//                 onChange={(e) => setPayAmount(Number(e.target.value))}
+//                 className="text-lg"
+//               />
+//               <p className="text-sm text-muted-foreground">
+//                 Remaining after payment:{" "}
+//                 <span className="font-medium">
+//                   ₹{((selectedMember?.pendingAmount || 0) - payAmount).toLocaleString()}
+//                 </span>
+//               </p>
+//             </div>
+//           </div>
+
+//           <DialogFooter>
+//             <Button
+//               variant="outline"
+//               onClick={closeDialog}
+//               disabled={payLoading}
+//             >
+//               Cancel
+//             </Button>
+//             <Button
+//               onClick={handlePayFee}
+//               disabled={
+//                 payLoading || 
+//                 payAmount <= 0 || 
+//                 payAmount > (selectedMember?.pendingAmount || 0)
+//               }
+//             >
+//               {payLoading ? (
+//                 <>
+//                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+//                   Processing...
+//                 </>
+//               ) : (
+//                 `Collect ₹${payAmount.toLocaleString()}`
+//               )}
+//             </Button>
+//           </DialogFooter>
+//         </DialogContent>
+//       </Dialog>
 //     </DashboardLayout>
 //   );
 // }
-
 
 
 "use client";
@@ -378,13 +389,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { IndianRupee, ArrowRight, Search, Loader2 } from "lucide-react";
+import { IndianRupee, Search, Loader2, BellRing } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { BulkReminderButton } from "@/components/Bulkreminderbutton";
 
 type MemberWithPending = {
   id: string;
@@ -407,11 +418,14 @@ export default function PendingFeesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Dialog state - FIXED: Added dialogOpen state
+  // Collect dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<MemberWithPending | null>(null);
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payLoading, setPayLoading] = useState(false);
+
+  // Reminder state — track which member id is currently sending
+  const [remindingId, setRemindingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -464,11 +478,10 @@ export default function PendingFeesPage() {
 
   const openPayDialog = (member: MemberWithPending) => {
     setSelectedMember(member);
-    setPayAmount(member.pendingAmount); // pre-fill with full pending
+    setPayAmount(member.pendingAmount);
     setDialogOpen(true);
   };
 
-  // FIXED: Close dialog properly
   const closeDialog = () => {
     setDialogOpen(false);
     setSelectedMember(null);
@@ -491,7 +504,7 @@ export default function PendingFeesPage() {
         body: JSON.stringify({
           studentId: selectedMember.id,
           amount: payAmount,
-          paymentMethod: "CASH", // you can make this selectable later
+          paymentMethod: "CASH",
           remarks: `Fee payment on ${new Date().toISOString()}`,
         }),
       });
@@ -503,7 +516,7 @@ export default function PendingFeesPage() {
 
       toast.success(`₹${payAmount.toLocaleString()} paid successfully!`);
 
-      // Optimistic update: reduce pending amount
+      // Optimistic update
       setMembers((prev) =>
         prev.map((m) =>
           m.id === selectedMember.id
@@ -522,9 +535,8 @@ export default function PendingFeesPage() {
         setFilteredMembers((prev) => prev.filter((m) => m.id !== selectedMember.id));
       }
 
-      // FIXED: Close dialog after successful payment
       closeDialog();
-    } catch (err: string | unknown) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         toast.error(err.message || "Failed to record payment");
       } else {
@@ -532,6 +544,59 @@ export default function PendingFeesPage() {
       }
     } finally {
       setPayLoading(false);
+    }
+  };
+
+  const handleSendReminder = async (member: MemberWithPending) => {
+    setRemindingId(member.id);
+
+    const expiryFormatted = format(new Date(member.expiryDate), "dd MMM yyyy");
+    const daysLeft = differenceInDays(new Date(member.expiryDate), new Date());
+    const expiryNote =
+      daysLeft < 0
+        ? `Your membership expired ${Math.abs(daysLeft)} day(s) ago.`
+        : daysLeft === 0
+        ? `Your membership expires today!`
+        : `Your membership expires in ${daysLeft} day(s) (${expiryFormatted}).`;
+
+    const message =
+      `Hi ${member.name},\n\n` +
+      `This is a friendly reminder from your gym.\n\n` +
+      `📋 *Membership Details*\n` +
+      `Plan: ${member.plan?.name}\n` +
+      `${expiryNote}\n\n` +
+      `💰 *Fee Summary*\n` +
+      `Total Fees: ₹${member.totalFees.toLocaleString()}\n` +
+      `Amount Paid: ₹${member.paidAmount.toLocaleString()}\n` +
+      `Pending Dues: ₹${member.pendingAmount.toLocaleString()}\n\n` +
+      `Please clear your dues at the earliest to avoid any interruption.\n\n` +
+      `Thank you! 🙏`;
+
+    try {
+      const res = await fetch("/api/dashboard/send-msg", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          to: member.mobile,
+          message,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to send reminder");
+      }
+
+      toast.success(`Reminder sent to ${member.name}!`);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error(err.message || "Failed to send reminder");
+      } else {
+        toast.error("Failed to send reminder");
+      }
+    } finally {
+      setRemindingId(null);
     }
   };
 
@@ -581,15 +646,20 @@ export default function PendingFeesPage() {
         </div>
 
         {/* Search */}
+        <div className="flex justify-between  gap-2">
         <div className="relative max-w-md">
+          
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search name or mobile..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 bg-white"
-          />
+          /> 
         </div>
+        <BulkReminderButton members={filteredMembers} />
+        </div>
+   
 
         {/* Table */}
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
@@ -603,7 +673,7 @@ export default function PendingFeesPage() {
                 <TableHead>Total</TableHead>
                 <TableHead>Paid</TableHead>
                 <TableHead className="text-right">Pending</TableHead>
-                <TableHead className="text-right pr-6">Action</TableHead>
+                <TableHead className="text-right pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -637,15 +707,39 @@ export default function PendingFeesPage() {
                       ₹{member.pendingAmount.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right pr-6">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => openPayDialog(member)}
-                      >
-                        <IndianRupee className="h-3.5 w-3.5" />
-                        Collect
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Send Reminder */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                          onClick={() => handleSendReminder(member)}
+                          disabled={remindingId === member.id}
+                        >
+                          {remindingId === member.id ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <BellRing className="h-3.5 w-3.5" />
+                              Remind
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Collect Fee */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => openPayDialog(member)}
+                        >
+                          <IndianRupee className="h-3.5 w-3.5" />
+                          Collect
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -655,7 +749,7 @@ export default function PendingFeesPage() {
         </div>
       </div>
 
-      {/* FIXED: Dialog moved outside of table, controlled by dialogOpen state */}
+      {/* Collect Fee Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -697,8 +791,8 @@ export default function PendingFeesPage() {
             <Button
               onClick={handlePayFee}
               disabled={
-                payLoading || 
-                payAmount <= 0 || 
+                payLoading ||
+                payAmount <= 0 ||
                 payAmount > (selectedMember?.pendingAmount || 0)
               }
             >
