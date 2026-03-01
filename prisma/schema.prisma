@@ -282,11 +282,11 @@ model GymSettings {
   gymId String @unique @db.ObjectId
   gym   Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
 
-  // WhatsApp
-  whatsappEnabled  Boolean @default(false)
-  whatsappApiKey   String?
-  whatsappPhone    String?
-  whatsappProvider String?
+  // WhatsApp API config (fastpaynow or any REST provider)
+  whatsappEnabled    Boolean @default(false)
+  whatsappInstanceId String?
+  whatsappApiKey     String?
+  whatsappEndpoint   String? @default("https://send.fastpaynow.in/api/send")
 
   // Theme
   primaryColor    String  @default("#3b82f6")
@@ -300,6 +300,8 @@ model GymSettings {
 
   updatedAt DateTime @updatedAt
 }
+
+// WhatsAppSession model can be fully deleted — no longer needed
 
 model WhatsAppSession {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId

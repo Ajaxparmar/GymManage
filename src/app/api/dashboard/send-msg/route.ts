@@ -1,52 +1,41 @@
-// src/app/api/dashboard/send-msg/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { getIO } from "@/lib/socket";
-import { sendWhatsAppMessage, initGymWhatsApp, getGymWAStatus } from "@/lib/whatsapp-manager";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { sendWhatsAppMessage } from "@/lib/wa-service";
 
 export async function POST(req: NextRequest) {
   console.log("[SEND] POST /send-msg received");
-  const { to, message } = await req.json();
-  console.log("[SEND] Payload:", { to, message });
-  
+
   const session = await getServerSession(authOptions);
-  console.log("[SEND] Received request:",session);
-  
+
   if (!session?.user?.gymId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const gymId = session.user.gymId;
-
+  const { to, message } = await req.json();
 
   if (!to || !message) {
     return NextResponse.json({ error: "Missing to or message" }, { status: 400 });
   }
 
+  // Ensure it's a phone number, not a DB id or garbage
+  const digitsOnly = to.replace(/\D/g, "");
+  if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+    return NextResponse.json(
+      { error: `Invalid phone number: "${to}". Must include country code e.g. +919876543210` },
+      { status: 400 }
+    );
+  }
+
+  console.log("[SEND] Sending to:", digitsOnly, "gymId:", gymId);
+
   try {
-    const currentStatus = getGymWAStatus(gymId);
-    console.log(`[SEND] Current status for ${gymId}: ${currentStatus}`);
-
-    if (currentStatus !== "ready") {
-      console.log(`[SEND] Client not ready (${currentStatus}) — attempting re-init`);
-      const io = getIO();
-      if (!io) {
-        throw new Error("Socket.IO not available");
-      }
-      await initGymWhatsApp(gymId, io);
-      // Wait a bit for ready (not perfect, but helps in quick tests)
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-
-    await sendWhatsAppMessage(gymId, to, message, { showToast: true, silent: false });
+    await sendWhatsAppMessage(gymId, to, message);
     return NextResponse.json({ success: true, message: "Sent" });
   } catch (err: unknown) {
     console.error("[SEND] Failed:", err);
     const errorMessage = err instanceof Error ? err.message : "Failed to send message";
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
