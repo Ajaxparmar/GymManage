@@ -232,7 +232,7 @@ async function getRevenueLast6Months(gymId: string, fromDate: Date) {
     months[key] = 0;
   }
 
-  payments.forEach((p) => {
+  payments.forEach((p: { paymentDate: Date; _sum: { amount: number | null } }) => {
     const month = format(p.paymentDate!, "MMM");
     if (month in months) {
       months[month] += p._sum.amount || 0;
