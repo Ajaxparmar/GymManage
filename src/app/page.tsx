@@ -1386,7 +1386,7 @@ export default function LandingPage() {
               className="hidden sm:block px-5 py-2.5 text-zinc-600 dark:text-zinc-400 hover:text-orange-500 font-medium transition text-sm">
               Login
             </Link>
-            <Link href="/pages/signup"
+            <Link href="/pages/Contactform"
               className="relative overflow-hidden shimmer px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-orange-500/40 hover:scale-[1.03] active:scale-[0.97] transition-all text-sm">
               Start Free Trial
             </Link>

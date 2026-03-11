@@ -313,3 +313,19 @@ model WhatsAppSession {
   gym Gym @relation(fields: [gymId], references: [id], onDelete: Cascade)
   @@index([status])
 }
+
+
+model ContactLead {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  gymName   String?
+  phone     String
+  email     String?
+  gymSize   String?
+  interest  String
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contact_leads")
+}
